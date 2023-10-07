@@ -1,7 +1,8 @@
 'use client'
 import { Button, Card, CardBody, CardFooter, CardHeader, Divider, Input, Select, SelectItem } from "@nextui-org/react";
 import { useState } from "react";
-import { collegeMajors, slugify } from "./college-majors";
+import { collegeMajors, slugify } from "../_data-models/college-majors";
+import { useRouter } from "next/navigation";
 
 export default function SignUp() {
   type EnrollmentStatus = "undergraduate" | "graduate"
@@ -9,6 +10,11 @@ export default function SignUp() {
   type Year = "freshman" | "sophomore" | "junior" | "senior"
   const [year, setYear] = useState<Year | null>(null);
   const [major, setMajor] = useState<string | null>(null);
+  const router = useRouter()
+
+  const handleSignUpClicked = () => {
+    router.push('/home');
+  }
 
   return <div className="flex flex-col items-center pt-12">
     <Card className="w-96">
@@ -54,7 +60,7 @@ export default function SignUp() {
             )
           }
         </Select>
-        <Button>
+        <Button onClick={handleSignUpClicked}>
           Sign Up
         </Button>
       </CardBody>
