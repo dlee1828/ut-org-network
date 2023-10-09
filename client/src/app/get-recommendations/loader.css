@@ -1,0 +1,17 @@
+.square-7 {
+  width:55px;
+  aspect-ratio:1;
+  --g1:conic-gradient(from  -90deg at 0px  0px ,white 90deg,black 0);
+  --g2:conic-gradient(from 90deg at 22px 22px,white 90deg,black 0);
+  background:var(--g1),var(--g1),var(--g1), var(--g2),var(--g2),var(--g2);
+  background-size:25px 25px;
+  background-repeat:no-repeat;
+  animation:s7 1.5s infinite;
+}
+@keyframes s7 {
+  0%   {background-position:0    0   ,0 100%,100% 100% }
+  25%  {background-position:100% 0   ,0 100%,100% 100% }
+  50%  {background-position:100% 0   ,0 0   ,100% 100% }
+  75%  {background-position:100% 0   ,0 0   ,0    100% }
+  100% {background-position:100% 100%,0 0   ,0    100% }
+}

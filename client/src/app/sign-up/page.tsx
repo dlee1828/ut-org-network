@@ -10,9 +10,11 @@ export default function SignUp() {
   type Year = "freshman" | "sophomore" | "junior" | "senior"
   const [year, setYear] = useState<Year | null>(null);
   const [major, setMajor] = useState<string | null>(null);
+  const [signUpButtonLoading, setSignUpButtonLoading] = useState<boolean>(false);
   const router = useRouter()
 
   const handleSignUpClicked = () => {
+    setSignUpButtonLoading(true);
     router.push('/home');
   }
 
@@ -60,7 +62,7 @@ export default function SignUp() {
             )
           }
         </Select>
-        <Button onClick={handleSignUpClicked}>
+        <Button onClick={handleSignUpClicked} isLoading={signUpButtonLoading}>
           Sign Up
         </Button>
       </CardBody>

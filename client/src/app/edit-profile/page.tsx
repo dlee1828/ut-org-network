@@ -19,8 +19,8 @@ const CurrentOrganizationsComponent = () => {
         <TextField
           {...params}
           variant="standard"
-          label="Multiple values"
-          placeholder="Favorites"
+          label="Current Organizations I'm In"
+          placeholder=""
         />
       )}
     />
@@ -37,6 +37,13 @@ export default function EditProfile() {
   const [email, setEmail] = useState<string>("daniel8lee58@gmail.com");
   const [year, setYear] = useState<Year | "">("senior");
   const [major, setMajor] = useState<string | "">("electrical-engineering");
+
+  const [backButtonLoading, setBackButtonLoading] = useState<boolean>(false);
+
+  const handleBackButtonClicked = () => {
+    setBackButtonLoading(true);
+    router.push('/home');
+  }
 
   return <div className="flex flex-col items-center pt-28 gap-4 w-96 mx-auto">
     <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} width="100%" label="First Name" />
@@ -78,6 +85,6 @@ export default function EditProfile() {
     </Select>
     <CurrentOrganizationsComponent></CurrentOrganizationsComponent>
 
-    <Button onClick={() => router.push('/home')} color="primary" radius="full">Back</Button>
+    <Button isLoading={backButtonLoading} onClick={handleBackButtonClicked} color="primary" radius="full">Back</Button>
   </div>
 }

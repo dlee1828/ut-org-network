@@ -16,6 +16,10 @@ const config: Config = {
         'gradient-conic':
           'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
       },
+      animation: {
+        fadeIn: 'fadeIn 0.5s ease-in-out forwards',
+        fadeInAndFall: 'fadeInAndFall 0.5s ease-in-out forwards',
+      }
     },
   },
   darkMode: "class",
