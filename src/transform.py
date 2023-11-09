@@ -2,6 +2,8 @@ import networkx as nx
 import itertools
 from copy import deepcopy
 import numpy as np
+import pandas as pd
+# TODO: Remove pandas get_dummies and replace with sklearn one-hotters that are saved to disk
 
 def intersect(a1, a2):
     return [n for n in a1 if n in a2]
@@ -24,22 +26,24 @@ def create_shared_subgraph(G, type='org'):
 
 
 def engineer_features(G):
-    # TODO Work on getting this to be more feature agnostic - i.e. take the join of all this stuff and null if not present
-    # Also need a stored one-hot 
-
-    # Change type to two features, is_student, and is_org
     G_eng = deepcopy(G)
-    _type = np.asarray(list(nx.get_node_attributes(G_eng, 'type').items()))
-    is_student = np.asarray(_type[:,1] == 'student', dtype='float32')
-    # commitment_limit = list(nx.get_node_attributes(G, 'commitment_limit').values())
 
-    X = np.column_stack([is_student, 1-is_student])
-    nx.set_node_attributes(G_eng, dict(zip(_type[:,0], X)), 'X')
+    _type = np.asarray(list(nx.get_node_attributes(G_eng, 'type').items()))
+    is_student = np.asarray(_type[:,1] == 'student', dtype=np.float32)
+
+    majors = nx.get_node_attributes(G_eng, 'major')
+    df_majors = pd.get_dummies(pd.Series(majors), prefix='major')
+    major_one_hot = df_majors.reindex(G_eng.nodes()).fillna(0).astype(np.float32).values
+
+    years = nx.get_node_attributes(G_eng, 'grade')
+    df_years = pd.get_dummies(pd.Series(years), prefix='grade')
+    year_one_hot = df_years.reindex(G_eng.nodes()).fillna(0).astype(np.float32).values
+
+    X = np.column_stack((is_student, major_one_hot, year_one_hot))
+
+    nx.set_node_attributes(G_eng, {node: X[i] for i, node in enumerate(G_eng.nodes())}, 'X')
     nx.set_node_attributes(G_eng, dict(zip(_type[:,0], is_student)), 'class')
 
-    # TODO Add major in as one-hot
+    feature_key = ['is_student'] + df_majors.columns.tolist() + df_years.columns.tolist()
 
-    # TODO Add Year in as one-hot
-
-
-    return G_eng
+    return G_eng, feature_key

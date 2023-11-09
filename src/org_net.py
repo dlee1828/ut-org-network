@@ -87,7 +87,7 @@ def clean_graph_pipeline(G = None):
     if G == None:
         G = synthetic.synthesize_graph()
 
-    G_eng = transform.engineer_features(G)
+    G_eng, feature_dict = transform.engineer_features(G)
     G = dgl.from_networkx(G_eng, node_attrs=['X', 'class']) # TODO Investigate the slowness here
     return G
 
@@ -112,15 +112,15 @@ def train_pipeline(G, epochs=1000):
         loss.backward()
         optimizer.step()
 
-        # if e % 5 == 0:
-        #     print("In epoch {}, loss: {}".format(e, loss))
+        if e % 5 == 0:
+            print("In epoch {}, loss: {}".format(e, loss))
 
-        # # ----------- 5. check results ------------------------ #
-        # if e % 100 == 0:
-        #     with torch.no_grad():
-        #         pos_score = pred(test_pos_g, h)
-        #         neg_score = pred(test_neg_g, h)
-        #         print("AUC", utils.compute_auc(pos_score, neg_score))
+        # ----------- 5. check results ------------------------ #
+        if e % 100 == 0:
+            with torch.no_grad():
+                pos_score = pred(test_pos_g, h)
+                neg_score = pred(test_neg_g, h)
+                print("AUC", utils.compute_auc(pos_score, neg_score))
 
     return model
 
