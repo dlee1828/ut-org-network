@@ -43,7 +43,9 @@ def engineer_features(G):
 
     nx.set_node_attributes(G_eng, {node: X[i] for i, node in enumerate(G_eng.nodes())}, 'X')
     nx.set_node_attributes(G_eng, dict(zip(_type[:,0], is_student)), 'class')
+    G_eng = nx.relabel_nodes(G_eng, {n:i for i, n in enumerate(G.nodes)})
+    id_key = {i:n for i, n in enumerate(G.nodes)}
 
     feature_key = ['is_student'] + df_majors.columns.tolist() + df_years.columns.tolist()
 
-    return G_eng, feature_key
+    return G_eng, feature_key, id_key

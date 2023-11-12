@@ -83,13 +83,10 @@ def create_train_test_split_edge(data):
 
     return train_g, train_pos_g, train_neg_g, test_pos_g, test_neg_g
 
-def clean_graph_pipeline(G = None):
-    if G == None:
-        G = synthetic.synthesize_graph()
-
-    G_eng, feature_dict = transform.engineer_features(G)
-    G = dgl.from_networkx(G_eng, node_attrs=['X', 'class']) # TODO Investigate the slowness here
-    return G
+def clean_graph_pipeline(G):
+    G_eng, feature_dict, id_key = transform.engineer_features(G)
+    G = dgl.from_networkx(G_eng, node_attrs=['X', 'class'])
+    return G, id_key
 
 def train_pipeline(G, epochs=1000):
     train_g, train_pos_g, train_neg_g, test_pos_g, test_neg_g = create_train_test_split_edge(G)
@@ -214,15 +211,25 @@ def node_output_pipelne(graph, node_id, model, k=5, threshold=0.5, mode='topK'):
     return ret
     
 
-def format_output(output):
+def format_output(output, id_key=None, return_ids=False):
+    if not return_ids and id_key is None:
+        raise ValueError('return_ids is false but id_key is none. Provide a dict from id to name to return names instead of ids')
+
     formatted = {}
 
     for n in output[:,0]:
+        idx = int(n) if return_ids else id_key[int(n)]
+
         if n not in formatted.keys():
-            formatted[int(n)] = {}
+            formatted[idx] = {}
+
 
     for s in output:
-        formatted[int(s[0])][int(s[1])] = s[2]
+        if return_ids:
+            formatted[int(s[0])][int(s[1])] = s[2]
+        else:
+            formatted[id_key[int(s[0])]][id_key[int(s[1])]] = s[2]
+       
 
     return json.dumps(formatted)
 
