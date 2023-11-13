@@ -25,7 +25,9 @@ pandas
 
 
 
-torch
+# torch
+-f https://download.pytorch.org/whl/cpu/torch_stable.html
+torch==2.0.1+cpu
 
 scikit-learn
 scipy
