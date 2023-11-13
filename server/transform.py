@@ -42,9 +42,9 @@ def engineer_features(G, create_new=True, inplace=True):
         if create_new:
             ohe = OHE(handle_unknown='ignore', dtype=np.float32)
             one_hot = ohe.fit_transform(feat_data)
-            dump(ohe, f'../data/OHE/{feat}_OHE.joblib')
+            dump(ohe, f'./data/OHE/{feat}_OHE.joblib')
         else:
-            ohe = load(f'../data/OHE/{feat}_OHE.joblib')
+            ohe = load(f'./data/OHE/{feat}_OHE.joblib')
             one_hot = ohe.transform(feat_data)
         one_hot = np.array(one_hot.todense())
         feats.append(one_hot)
