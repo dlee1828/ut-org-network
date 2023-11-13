@@ -3,8 +3,7 @@ import sys
 sys.path.append('../src')
 sys.path.append('..')
 
-import src.org_net as org_net
-import networkx as nx
+import org_net 
 
 app = Flask(__name__)
 

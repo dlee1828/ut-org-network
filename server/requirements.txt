@@ -23,8 +23,6 @@ networkx
 numpy
 pandas
 
-utils
-
 # torch
 -f https://download.pytorch.org/whl/cpu/torch_stable.html
 torch==2.0.1+cpu
@@ -32,7 +30,4 @@ torch==2.0.1+cpu
 scikit-learn
 scipy
 tqdm
-models
-transform
-itertools
-json
+
