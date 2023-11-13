@@ -38,7 +38,7 @@ def invert_graph(g, copy_data=True, separate_classes=True, save=False):
         inv_g = dgl.remove_edges(inv_g, np.where(~sep)[0])
 
     if save:
-        dump(inv_g, '../data/G_inv.joblib')
+        dump(inv_g, './data/G_inv.joblib')
     return inv_g
 
 def create_train_test_split_edge(data):
@@ -89,8 +89,8 @@ def clean_graph_pipeline(G, save=True):
     G_eng, feature_dict, id_key = transform.engineer_features(G)
     G = dgl.from_networkx(G_eng, node_attrs=['X', 'class'])
     if save:
-        dump(G, '../data/G_clean.joblib')
-        dump(id_key, '../data/id_key.joblib')
+        dump(G, './data/G_clean.joblib')
+        dump(id_key, './data/id_key.joblib')
     return G, id_key
 
 def train_pipeline(G, epochs=1000, save=True):
@@ -125,7 +125,7 @@ def train_pipeline(G, epochs=1000, save=True):
                 print("AUC", utils.compute_auc(pos_score, neg_score))
 
     if save:
-        dump(model, '../data/model.joblib')
+        dump(model, './data/model.joblib')
     return model
 
 def calc_scores(g, model):
@@ -230,11 +230,11 @@ def get_reccomendations_for_new_student(name,
     # Load backend stuff from disk
     if load_backend:
         if G_is_inverted:
-            G = load('../data/G_inv.joblib')
+            G = load('./data/G_inv.joblib')
         else:
-            G = load('../data/G_clean.joblib')
-        model = load('../data/model.joblib')
-        id_key = load('../data/id_key.joblib')
+            G = load('./data/G_clean.joblib')
+        model = load('./data/model.joblib')
+        id_key = load('./data/id_key.joblib')
     elif None in [G, model, id_key]:
         raise ValueError('Backend not loaded from disk, but not properly supplied')
         
@@ -244,10 +244,10 @@ def get_reccomendations_for_new_student(name,
     # Save everything back to disk
     if load_backend:
         if G_is_inverted:
-            dump(G, '../data/G_inv.joblib')
+            dump(G, './data/G_inv.joblib')
         else:
-            dump(G, '../data/G_clean.joblib')
-        dump(id_key, '../data/id_key.joblib')
+            dump(G, './data/G_clean.joblib')
+        dump(id_key, './data/id_key.joblib')
 
     return format_output(recs, id_key)
 
