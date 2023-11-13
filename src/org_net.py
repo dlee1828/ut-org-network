@@ -5,14 +5,15 @@ from scipy.sparse import coo_matrix
 import dgl.function as fn
 import utils
 import models
-import synthetic
 import transform
 import itertools
 import dgl
 import torch
 import json
+import networkx as nx
+from joblib import dump, load
 
-def invert_graph(g, copy_data=True, separate_classes=True):
+def invert_graph(g, copy_data=True, separate_classes=True, save=False):
     
     # Create negative adj mtx
     u, v = g.edges()
@@ -36,8 +37,9 @@ def invert_graph(g, copy_data=True, separate_classes=True):
             sep = inv_g.edata['diff_class'].numpy()
         inv_g = dgl.remove_edges(inv_g, np.where(~sep)[0])
 
+    if save:
+        dump(inv_g, '../data/G_inv.joblib')
     return inv_g
-
 
 def create_train_test_split_edge(data):
     # Create a list of positive and negative edges
@@ -83,12 +85,15 @@ def create_train_test_split_edge(data):
 
     return train_g, train_pos_g, train_neg_g, test_pos_g, test_neg_g
 
-def clean_graph_pipeline(G):
+def clean_graph_pipeline(G, save=True):
     G_eng, feature_dict, id_key = transform.engineer_features(G)
     G = dgl.from_networkx(G_eng, node_attrs=['X', 'class'])
+    if save:
+        dump(G, '../data/G_clean.joblib')
+        dump(id_key, '../data/id_key.joblib')
     return G, id_key
 
-def train_pipeline(G, epochs=1000):
+def train_pipeline(G, epochs=1000, save=True):
     train_g, train_pos_g, train_neg_g, test_pos_g, test_neg_g = create_train_test_split_edge(G)
     model = models.GraphSAGE(train_g.ndata["X"].shape[1], 32)
     pred = models.DotPredictor()
@@ -119,8 +124,9 @@ def train_pipeline(G, epochs=1000):
                 neg_score = pred(test_neg_g, h)
                 print("AUC", utils.compute_auc(pos_score, neg_score))
 
+    if save:
+        dump(model, '../data/model.joblib')
     return model
-
 
 def calc_scores(g, model):
     
@@ -147,16 +153,14 @@ def output_pipeline(graph: dgl.DGLGraph,
     # Create an inverse of the current graph
     # This way we only generate prediction scores for nodes which aren't connected yet
     if invert:
-        g = invert_graph(graph)
-    else:
-        g = deepcopy(graph)
+        graph = invert_graph(graph)
 
-    u, v = g.edges()
+    u, v = graph.edges()
     u, v = u.numpy(), v.numpy()
     # eids = np.arange(g.num_edges())
     edges = np.column_stack((u, v))
 
-    scores = calc_scores(g, model)
+    scores = calc_scores(graph, model)
 
     # Select only the edges which the class of nodes are different
     mask = np.where(scores[:,1])
@@ -179,18 +183,21 @@ def output_pipeline(graph: dgl.DGLGraph,
         return ret
     
     # Must be all
-    return ret
+    return ret  
 
-def node_output_pipelne(graph, node_id, model, k=5, threshold=0.5, mode='topK'):
+def node_output_pipelne(graph, node_id, model, k=5, threshold=0.5, mode='topK', inv_precomputed=False):
     # Take the subgraph os stuff only consider node 'node_name'ArithmeticError
     # Pass through output_pipeline
     if mode.lower() not in ['topk', 'threshold', 'all']:
         raise ValueError('Mode must be either \'topK\' or \'threshold\' or \'all\'')
 
-    # TODO This needs debugging - create a subgraph with node 'node_id' and all nodes of different class its not connected to already
-    g = invert_graph(graph)
-    neighborhood = np.concatenate((g.in_edges(node_id)[0].numpy(), [node_id]))
-    sg = g.subgraph(neighborhood)
+
+    if not inv_precomputed:
+        graph = invert_graph(graph)
+
+    neighborhood = np.concatenate((graph.in_edges(node_id)[0].numpy(), [node_id]))
+    sg = graph.subgraph(neighborhood)
+
     ret = output_pipeline(sg, model, mode='all', invert=False)
 
     # Map old node_id to sg node_id
@@ -210,6 +217,72 @@ def node_output_pipelne(graph, node_id, model, k=5, threshold=0.5, mode='topK'):
     # Must be all, return everything
     return ret
     
+def get_reccomendations_for_new_student(name, 
+                                        year, 
+                                        major, 
+                                        list_of_orgs, 
+                                        G=None,
+                                        model=None, 
+                                        id_key=None, 
+                                        k=5, 
+                                        G_is_inverted=True, 
+                                        load_backend=True):
+    # Load backend stuff from disk
+    if load_backend:
+        if G_is_inverted:
+            G = load('../data/G_inv.joblib')
+        else:
+            G = load('../data/G_clean.joblib')
+        model = load('../data/model.joblib')
+        id_key = load('../data/id_key.joblib')
+    elif None in [G, model, id_key]:
+        raise ValueError('Backend not loaded from disk, but not properly supplied')
+        
+    G, id_key, node_id = add_student_to_graph(G, name, year, major, list_of_orgs, id_key, G_is_inverted)
+    recs = node_output_pipelne(G, node_id, model, inv_precomputed=G_is_inverted, k=k)
+
+    # Save everything back to disk
+    if load_backend:
+        if G_is_inverted:
+            dump(G, '../data/G_inv.joblib')
+        else:
+            dump(G, '../data/G_clean.joblib')
+        dump(id_key, '../data/id_key.joblib')
+
+    return format_output(recs, id_key)
+
+
+def add_student_to_graph(G, student_name, year, major, list_of_orgs, id_key, G_is_inverted=False):
+    # Clean node
+    G_student = nx.Graph()
+    G_student.add_node(student_name, grade=year, major=major, type='student')
+    G_student_eng, _, __ = transform.engineer_features(G_student, create_new=False)
+    G_student_eng = nx.relabel_nodes(G_student_eng, {n:G.number_of_nodes() for n in G_student_eng.nodes})
+    node_id = G.number_of_nodes()
+    id_key[node_id] = student_name
+
+    # Add node
+    X = G.ndata.pop('X')
+    cls = G.ndata.pop('class')
+    G.add_nodes(1)
+    X = torch.cat([X, torch.Tensor(G_student_eng.nodes[node_id]['X']).reshape(1, -1)], dim=0)
+    G.ndata['X'] = X
+    cls = torch.cat([cls, torch.tensor([G_student_eng.nodes[node_id]['class']])], dim=0)
+    G.ndata['class'] = cls
+
+    # Add edges
+    u, v = [], []
+    for i in np.where(G.ndata['class'].numpy() == 0)[0]:
+        if G_is_inverted and (id_key[i] not in list_of_orgs):
+            u.append(node_id)
+            v.append(i)
+        elif (not G_is_inverted) and (id_key[i] in list_of_orgs):
+            u.append(node_id)
+            v.append(i)
+    G.add_edges(u, v)
+    G.add_edges(v, u)
+
+    return G, id_key, node_id
 
 def format_output(output, id_key=None, return_ids=False):
     if not return_ids and id_key is None:

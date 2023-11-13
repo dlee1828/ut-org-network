@@ -2,7 +2,10 @@ import networkx as nx
 import itertools
 from copy import deepcopy
 import numpy as np
-import pandas as pd
+from sklearn.preprocessing import OneHotEncoder as OHE
+from joblib import load, dump
+#import pandas as pd
+
 # TODO: Remove pandas get_dummies and replace with sklearn one-hotters that are saved to disk
 
 def intersect(a1, a2):
@@ -24,28 +27,36 @@ def create_shared_subgraph(G, type='org'):
 
     return SG
 
+def engineer_features(G, create_new=True, inplace=True):
+    if not inplace:
+        G = deepcopy(G)
 
-def engineer_features(G):
-    G_eng = deepcopy(G)
+    feature_key = ['is_student']
 
-    _type = np.asarray(list(nx.get_node_attributes(G_eng, 'type').items()))
+    _type = np.asarray(list(nx.get_node_attributes(G, 'type').items()))
     is_student = np.asarray(_type[:,1] == 'student', dtype=np.float32)
 
-    majors = nx.get_node_attributes(G_eng, 'major')
-    df_majors = pd.get_dummies(pd.Series(majors), prefix='major')
-    major_one_hot = df_majors.reindex(G_eng.nodes()).fillna(0).astype(np.float32).values
+    feats = [is_student]
+    for feat in ['major', 'grade']:
+        feat_data = np.array(list(nx.get_node_attributes(G, feat, default=f'{feat}_NA').values())).reshape(-1, 1)
+        if create_new:
+            ohe = OHE(handle_unknown='ignore', dtype=np.float32)
+            one_hot = ohe.fit_transform(feat_data)
+            dump(ohe, f'../data/OHE/{feat}_OHE.joblib')
+        else:
+            ohe = load(f'../data/OHE/{feat}_OHE.joblib')
+            one_hot = ohe.transform(feat_data)
+        one_hot = np.array(one_hot.todense())
+        feats.append(one_hot)
+        feature_key.extend(list(ohe.categories_[0]))
 
-    years = nx.get_node_attributes(G_eng, 'grade')
-    df_years = pd.get_dummies(pd.Series(years), prefix='grade')
-    year_one_hot = df_years.reindex(G_eng.nodes()).fillna(0).astype(np.float32).values
+    X = np.column_stack(feats)
 
-    X = np.column_stack((is_student, major_one_hot, year_one_hot))
+    nx.set_node_attributes(G, {node: X[i] for i, node in enumerate(G.nodes())}, 'X')
+    nx.set_node_attributes(G, dict(zip(_type[:,0], is_student)), 'class')
 
-    nx.set_node_attributes(G_eng, {node: X[i] for i, node in enumerate(G_eng.nodes())}, 'X')
-    nx.set_node_attributes(G_eng, dict(zip(_type[:,0], is_student)), 'class')
-    G_eng = nx.relabel_nodes(G_eng, {n:i for i, n in enumerate(G.nodes)})
+    # Relabel (for dgl)
     id_key = {i:n for i, n in enumerate(G.nodes)}
+    G = nx.relabel_nodes(G, {n:i for i, n in enumerate(G.nodes)})
 
-    feature_key = ['is_student'] + df_majors.columns.tolist() + df_years.columns.tolist()
-
-    return G_eng, feature_key, id_key
+    return G, feature_key, id_key
