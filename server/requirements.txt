@@ -25,7 +25,7 @@ pandas
 
 
 
-# pytorch
+torch
 
 scikit-learn
 scipy
